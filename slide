@@ -1,0 +1,97 @@
+import hashlib
+import json
+import time
+from typing import Dict, List, Optional, Tuple
+
+
+class Block:
+    def __init__(
+        self, index: int, timestamp: int, data: str, previous_hash: str, nonce: int
+    ):
+        self.index = index
+        self.timestamp = timestamp
+        self.data = data
+        self.previous_hash = previous_hash
+        self.nonce = nonce
+
+    def hash(self) -> str:
+        block_string = json.dumps(self.__dict__, sort_keys=True)
+        return hashlib.sha256(block_string.encode()).hexdigest()
+
+
+class MultiBranchBlockchain:
+    def __init__(self, initial_difficulty: int = 4):
+        self.chain: List[Block] = []
+        self.difficulty = initial_difficulty
+        self.branches: Dict[str, List[Block]] = {}
+
+        # Create the genesis block
+        genesis_block = self.create_block("Genesis", "0")
+        self.chain.append(genesis_block)
+        self.branches[genesis_block.hash()] = self.chain.copy()
+
+    def create_block(self, data: str, previous_hash: str) -> Block:
+        index = len(self.chain)
+        timestamp = int(time.time())
+        nonce, block_hash = self.proof_of_work(index, timestamp, data, previous_hash)
+        return Block(index, timestamp, data, previous_hash, nonce)
+
+    def proof_of_work(
+        self, index: int, timestamp: int, data: str, previous_hash: str
+    ) -> Tuple[int, str]:
+        nonce = 0
+        while True:
+            block_string = json.dumps(
+                {
+                    "index": index,
+                    "timestamp": timestamp,
+                    "data": data,
+                    "previous_hash": previous_hash,
+                    "nonce": nonce,
+                },
+                sort_keys=True,
+            )
+            block_hash = hashlib.sha256(block_string.encode()).hexdigest()
+            if block_hash[: self.difficulty] == "0" * self.difficulty:
+                return nonce, block_hash
+            nonce += 1
+
+    def add_block(self, data: str, previous_hash: str) -> None:
+        new_block = self.create_block(data, previous_hash)
+        self.chain.append(new_block)
+
+        if previous_hash not in self.branches:
+            self.branches[previous_hash] = self.chain.copy()
+        else:
+            self.branches[previous_hash].append(new_block)
+
+    def longest_branch(self) -> List[Block]:
+        longest = []
+        for branch in self.branches.values():
+            if len(branch) > len(longest):
+                longest = branch
+        return longest
+
+    def resolve_conflicts(self) -> Optional[List[Block]]:
+        longest_branch = self.longest_branch()
+        if len(longest_branch) > len(self.chain):
+            self.chain = longest_branch
+            return longest_branch
+        return None
+
+
+# Example usage
+blockchain = MultiBranchBlockchain()
+
+blockchain.add_block("Block 1", blockchain.chain[-1].hash())
+blockchain.add_block("Block 2", blockchain.chain[-1].hash())
+
+# Add a conflicting branch
+blockchain.add_block("Block 2 (alternate)", blockchain.chain[-2].hash())
+
+resolved_chain = blockchain.resolve_conflicts()
+if resolved_chain:
+    print("Conflict resolved. The new chain is:")
+    for block in resolved_chain:
+        print(f"Index: {block.index}, Data: {block.data},
+
