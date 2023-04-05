@@ -1,0 +1,37 @@
+import hashlib
+import json
+import time
+from typing import Dict, List, Optional, Tuple
+
+# Assuming you have access to the shorthash function and the required library has been imported
+from slidechain import shorthash
+
+class Block:
+    def __init__(
+        self, index: int, timestamp: int, data: str, previous_hash: str, nonce: int
+    ):
+        self.index = index
+        self.timestamp = timestamp
+        self.data = data
+        self.previous_hash = previous_hash
+        self.nonce = nonce
+        self.payload_hash = self.compute_payload_hash()
+
+    def compute_payload_hash(self) -> str:
+        payload_string = json.dumps(self.data, sort_keys=True)
+        return shorthash(payload_string.encode())  # Use the shorthash function for payload hashing
+
+    def hash(self) -> str:
+        block_string = json.dumps(
+            {
+                "index": self.index,
+                "timestamp": self.timestamp,
+                "payload_hash": self.payload_hash,
+                "previous_hash": self.previous_hash,
+                "nonce": self.nonce,
+            },
+            sort_keys=True,
+        )
+        return hashlib.sha256(block_string.encode()).hexdigest()
+
+# Rest of the code remains the same.
